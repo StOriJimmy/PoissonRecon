@@ -4,23 +4,25 @@ ST_TARGET=SurfaceTrimmer
 EH_TARGET=EDTInHeat
 IS_TARGET=ImageStitching
 AV_TARGET=AdaptiveTreeVisualization
-PR_SOURCE=PlyFile.cpp PoissonRecon.cpp
-SR_SOURCE=PlyFile.cpp SSDRecon.cpp
-ST_SOURCE=PlyFile.cpp SurfaceTrimmer.cpp
-EH_SOURCE=PlyFile.cpp EDTInHeat.cpp
+CP_TARGET=ChunkPLY
+PR_SOURCE=PoissonRecon.cpp
+SR_SOURCE=SSDRecon.cpp
+ST_SOURCE=SurfaceTrimmer.cpp
+EH_SOURCE=EDTInHeat.cpp
 IS_SOURCE=ImageStitching.cpp
-AV_SOURCE=PlyFile.cpp AdaptiveTreeVisualization.cpp
+AV_SOURCE=AdaptiveTreeVisualization.cpp
+CP_SOURCE=ChunkPLY.cpp
 
 COMPILER = gcc
 #COMPILER = clang
 
 ifeq ($(COMPILER),gcc)
-	CFLAGS += -fopenmp -Wno-deprecated -Wno-write-strings -std=c++11
-	LFLAGS += -lgomp -lstdc++
+	CFLAGS += -fopenmp -Wno-deprecated -std=c++11 -pthread -Wno-invalid-offsetof
+	LFLAGS += -lgomp -lstdc++ -lpthread
 else
 # 	CFLAGS += -fopenmp=libiomp5 -Wno-deprecated -Wno-write-strings -std=c++11 -Wno-invalid-offsetof
 # 	LFLAGS += -liomp5 -lstdc++
-	CFLAGS += -Wno-deprecated -Wno-write-strings -std=c++11 -Wno-invalid-offsetof
+	CFLAGS += -Wno-deprecated -std=c++11 -pthread -Wno-invalid-offsetof
 	LFLAGS += -lstdc++
 endif
 #LFLAGS += -lz -lpng -ljpeg
@@ -28,6 +30,8 @@ endif
 CFLAGS_DEBUG = -DDEBUG -g3
 LFLAGS_DEBUG =
 
+#CFLAGS_RELEASE = -O3 -DRELEASE -funroll-loops -ffast-math -g
+#LFLAGS_RELEASE = -O3 -g
 CFLAGS_RELEASE = -O3 -DRELEASE -funroll-loops -ffast-math -g
 LFLAGS_RELEASE = -O3 -g
 
@@ -54,6 +58,7 @@ ST_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(ST_SOURCE))))
 EH_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(EH_SOURCE))))
 IS_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(IS_SOURCE))))
 AV_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(AV_SOURCE))))
+CP_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(CP_SOURCE))))
 
 
 all: CFLAGS += $(CFLAGS_RELEASE)
@@ -65,6 +70,7 @@ all: $(BIN)$(ST_TARGET)
 all: $(BIN)$(EH_TARGET)
 all: $(BIN)$(IS_TARGET)
 all: $(BIN)$(AV_TARGET)
+all: $(BIN)$(CP_TARGET)
 
 debug: CFLAGS += $(CFLAGS_DEBUG)
 debug: LFLAGS += $(LFLAGS_DEBUG)
@@ -75,6 +81,7 @@ debug: $(BIN)$(ST_TARGET)
 debug: $(BIN)$(EH_TARGET)
 debug: $(BIN)$(IS_TARGET)
 debug: $(BIN)$(AV_TARGET)
+debug: $(BIN)$(CP_TARGET)
 
 poissonrecon: CFLAGS += $(CFLAGS_RELEASE)
 poissonrecon: LFLAGS += $(LFLAGS_RELEASE)
@@ -106,6 +113,11 @@ octreevisualization: LFLAGS += $(LFLAGS_RELEASE)
 octreevisualization: make_dir
 octreevisualization: $(BIN)$(AV_TARGET)
 
+chunkply: CFLAGS += $(CFLAGS_RELEASE)
+chunkply: LFLAGS += $(LFLAGS_RELEASE)
+chunkply: make_dir
+chunkply: $(BIN)$(CP_TARGET)
+
 clean:
 	rm -rf $(BIN)$(PR_TARGET)
 	rm -rf $(BIN)$(SR_TARGET)
@@ -113,12 +125,14 @@ clean:
 	rm -rf $(BIN)$(EH_TARGET)
 	rm -rf $(BIN)$(IS_TARGET)
 	rm -rf $(BIN)$(AV_TARGET)
+	rm -rf $(BIN)$(CP_TARGET)
 	rm -rf $(PR_OBJECTS)
 	rm -rf $(SR_OBJECTS)
 	rm -rf $(ST_OBJECTS)
 	rm -rf $(EH_OBJECTS)
 	rm -rf $(IS_OBJECTS)
 	rm -rf $(AV_OBJECTS)
+	rm -rf $(CP_OBJECTS)
 	cd PNG  && make clean
 
 
@@ -126,10 +140,12 @@ make_dir:
 	$(MD) -p $(BIN)
 
 $(BIN)$(PR_TARGET): $(PR_OBJECTS)
-	$(CXX) -o $@ $(PR_OBJECTS) $(LFLAGS)
+	cd PNG  && make
+	$(CXX) -o $@ $(PR_OBJECTS) -L$(BIN) $(LFLAGS) -ljpeg -lmypng -lz
 
 $(BIN)$(SR_TARGET): $(SR_OBJECTS)
-	$(CXX) -o $@ $(SR_OBJECTS) $(LFLAGS)
+	cd PNG  && make
+	$(CXX) -o $@ $(SR_OBJECTS) -L$(BIN) $(LFLAGS) -ljpeg -lmypng -lz
 
 $(BIN)$(ST_TARGET): $(ST_OBJECTS)
 	$(CXX) -o $@ $(ST_OBJECTS) $(LFLAGS)
@@ -142,7 +158,12 @@ $(BIN)$(IS_TARGET): $(IS_OBJECTS)
 	$(CXX) -o $@ $(IS_OBJECTS) -L$(BIN) $(LFLAGS) -ljpeg -lmypng -lz
 
 $(BIN)$(AV_TARGET): $(AV_OBJECTS)
-	$(CXX) -o $@ $(AV_OBJECTS) $(LFLAGS)
+	cd PNG  && make
+	$(CXX) -o $@ $(AV_OBJECTS) -L$(BIN) $(LFLAGS) -ljpeg -lmypng -lz
+
+$(BIN)$(CP_TARGET): $(CP_OBJECTS)
+	cd PNG  && make
+	$(CXX) -o $@ $(CP_OBJECTS) -L$(BIN) $(LFLAGS) -ljpeg -lmypng -lz
 
 $(BIN)%.o: $(SRC)%.c
 	$(CC) -c -o $@ -I$(INCLUDE) $<
